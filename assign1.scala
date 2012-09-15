@@ -2,40 +2,22 @@ import scala.math
 import scala.collection.parallel.immutable
 
 object stock{ 
-
-  def maxjump(a : ParVector[Int]) : Int = {
-        
-    def maxj(b : Int, e : Int) : (Int, Int, Int, Int) = {
-      val len = e - b
-      if (len > 1){
-        val split = len/2 + b 
-        val (lpremax, lmax, lpostmax, ltot) = maxj(b, split)
-        val (rpremax, rmax, rpostmax, rtot) = maxj(split, e) 
-        val a = (math.max(lpremax, ltot + rpremax),
+  def maxj(a : Vector[Int]) : (Int, Int, Int, Int) = {
+      if (a.length > 1){
+        val (split1, split2) = a.splitAt(a.length/2)
+        val (lpremax, lmax, lpostmax, ltot) = maxj(split1)
+        val (rpremax, rmax, rpostmax, rtot) = maxj(split2) 
+        val r = (math.max(lpremax, ltot + rpremax),
                  math.max( math.max(lmax, rmax), lpostmax+rpremax),
                  math.max(rpostmax, rtot + lpostmax),
                  ltot + rtot)
-        println(a)
-        a
+        r
       }
       else {
-        if (len == 0){
-          println(0)
-          (0,0,0,0) 
-        }
-        else { 
-          val v = math.max(0, a(b)) 
-          println (v)
-          (v,v,v, a(b))
-        }
+          val v = math.max(0, a(0)) 
+          (v,v,v, a(0))
       }
     }
-    maxj(0, a.length)._2
-  }
 
-  def maxjump2(a : Array[Int]) : Int = {
-    def ext( c : (Int, Int, Int), v : Int) : (Int , Int, Int) = {
-      (max
-    }
-    a.foldLeft((0,0,0,0))(ext)
+  def maxjump(a : Vector[Int]) : Int = maxj(a)._2
 }
