@@ -85,12 +85,32 @@ case class BBNum extends Seq[Bit] {
   
 }
 object big { 
-  def toComb(a : Bit, b : Bit) : (Bit, Carry) = 
-    match (a, b) {
-      (Zero,Zero) => (Zero, Gen)
-      (One ,One )   => (One, Prop)
-      (_   ,_   ) => (One, Gen)
+  def toCarry(a : Bit, b : Bit) : Carry = 
+    (a, b) match {
+      case (Zero,Zero) => Stop 
+      case (One ,One ) => Gen 
+      case (_   ,_   ) => Prop
     }
-  def add(b0 : BBNum, b1 : BBNum) : BBNum = (b0, b1).zipped.scan(BBNum())(
+  def concat_carry(c0 : Carry, c1 : Carry) : Carry = 
+    (c0, c1) match {
+      case (_   ,Stop) => Stop
+      case (_   ,Gen ) => Gen
+      case (a   ,Prop) => a
+    }
+
+  def randCarry(r : Random) : Carry = 
+    r.nextInt(3) match {
+      case 0 => Stop
+      case 1 => Gen 
+      case 2 => Prop
+    }
+  def assoc(t : (Carry, Carry, Carry)) : Boolean = {
+    val a, b,c = t
+    concat_carry(concat_carry(a,b),c) == concat_carry(a, concat_carry(b,c))
+  }
+  def gentup[A]( v : Seq[A]) : Seq[(A,A,A]) = v.map(a => v.map( b => v.map( c=> (a,b,c))))
+  
+  val associative = 
+    
 }
 
