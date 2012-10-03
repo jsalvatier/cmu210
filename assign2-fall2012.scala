@@ -72,45 +72,85 @@ object sky {
   def vecbld_value(bs : Vector[Bld])(x : Double) : Double = bs.foldLeft(0.0)( (mv, b : Bld) => math.max(mv, bld_value(b)(x)))
 }
 
-case class Bit 
-case class One extends Bit 
-case class Zero extends Bit
+sealed abstract class Bit 
+case object One extends Bit 
+case object Zero extends Bit
 
-case class Carry 
-case class Gen extends Carry 
-case class Prop extends Carry
-case class Stop extends Carry
+sealed abstract class Carry 
+case object Gen extends Carry 
+case object Prop extends Carry
+case object Stop extends Carry
 
-case class BBNum extends Seq[Bit] { 
+type BBNum = Seq[Bit]  
   
-}
+
 object big { 
-  def toCarry(a : Bit, b : Bit) : Carry = 
-    (a, b) match {
+  def toBBNum(a : Int) : BBNum = {
+    if (a == 0)
+      Seq[Bit]()
+    else 
+      ((a%2) match {
+        case 0 => Zero
+        case 1 => One
+      })+:toBBNum(a/2)
+  }
+  def toInt(a : BBNum) : Int = {
+    def up(t : (Int, Int), b : Bit ): (Int, Int)= {
+      val (v, s) = t
+      val f = b match {
+        case Zero => 0
+        case One  => s 
+      }
+      (v + f, s * 2 )
+    }
+    a.foldLeft((0,1))(up)._1
+  }
+  
+  def toCarry(t : (Bit, Bit)) : Carry = 
+    t match {
       case (Zero,Zero) => Stop 
-      case (One ,One ) => Gen 
+      case (One, One) => Gen 
       case (_   ,_   ) => Prop
     }
-  def concat_carry(c0 : Carry, c1 : Carry) : Carry = 
-    (c0, c1) match {
-      case (_   ,Stop) => Stop
-      case (_   ,Gen ) => Gen
-      case (a   ,Prop) => a
+  def toBit(t : (Carry, Carry)) : Bit =
+    t match {
+      case (Gen ,Prop) => Zero 
+      case (Gen ,_   ) => One 
+      case (_   ,Prop) => One 
+      case (_   ,_   ) => Zero 
+
+    }
+  def prop(c0 : Carry, c1 : Carry) : Carry = 
+    c1 match {
+      case Prop => c0
+      case _    => c1
     }
 
-  def randCarry(r : Random) : Carry = 
-    r.nextInt(3) match {
-      case 0 => Stop
-      case 1 => Gen 
-      case 2 => Prop
-    }
-  def assoc(t : (Carry, Carry, Carry)) : Boolean = {
-    val a, b,c = t
-    concat_carry(concat_carry(a,b),c) == concat_carry(a, concat_carry(b,c))
+ def assoc(t : (Carry, Carry, Carry)) : Boolean = {
+    val (a, b,c) = t
+    prop(prop(a,b),c) == prop(a, prop(b,c))
   }
-  def gentup[A]( v : Seq[A]) : Seq[(A,A,A]) = v.map(a => v.map( b => v.map( c=> (a,b,c))))
+  def gentup[A]( v : Seq[A]) : Seq[(A,A,A)] =   
+  {
+    var l = Seq[(A,A,A)]()
+    for (a <- v) 
+      for (b <- v) 
+        for (c <- v) 
+          l = l:+(a,b,c)
+    l
+  }
+  val no_assoc = gentup(List(Stop, Gen, Prop)).find( t => !assoc(t))
   
-  val associative = 
-    
+  def add(b0 : BBNum, b1 : BBNum) : BBNum = { 
+    val cs : Seq[Carry] = b0.zipAll(b1, Zero,Zero).map( toCarry) 
+    val carries = cs.scan(Stop)(prop)
+    val b = (carries, cs).zipped.toList.map(toBit)  
+    carries.last match {
+      case Gen => b :+ One
+      case _   => b
+    }
+  }   
+
+  def testAdd(a : Int, b : Int) : Boolean = (a + b) == toInt(add(toBBNum(a),toBBNum(b)))
 }
 
