@@ -117,6 +117,11 @@ object djslib {
   //task 2.7
   //no you cannot. because there may be other paths that have more negatives. when you run out of paths to try. 
   //
+  
+  //task 2.8 all of them once, because it has to keep going even for long paths, but none of them will ever visit an old node with a shorter
+  //path.
+  //
+
 
   
 
