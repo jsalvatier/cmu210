@@ -7,59 +7,52 @@ object djslib {
   import pqLib._
 
 
-  def djs(g : WGraph, fv : Vertex) : Map[Vertex, Double] =  
-    djs_(g, Map(), insert(empty, (fv, 0))) 
+  def djs(g : WGraph, s : Vertex, e : Vertex) : Option[Double]  =  
+    djs_(g, Set(), insert(empty, (s, 0)), e) 
 
-  def djs_(g : WGraph, x : Map[Vertex, Double], vs : PQueue) : Map[Vertex, Double] = 
+  def djs_(g : WGraph, x : Set[Vertex], vs : PQueue, e : Vertex) : Option[Double]=
       (deleteMin(vs)) match { 
-        case None => x
-        case Some((nvs, (v, d))) => {
-          val nx = if (x.contains(v)) 
-                     x 
-                   else 
-                     x + ((v, d))
-          val nnvs = g(v).foldLeft(nvs)( 
-              { case (vs_ : PQueue, (ngh : Vertex, w : Double)) => 
-                  insert(vs_, (ngh, d + w))
-              } 
-            )
-          djs_(g, nx, nnvs)
+        case None => None 
+        case Some((nvs, (v, d))) => 
+          if (e == v)
+            Some(d)
+          else {
+            val nx = x + v
+            val nnvs = g(v).foldLeft(nvs)( 
+              { case (vs_ , (ngh, w)) => insert(vs_, (ngh, d + w)) }
+               )
+
+            djs_(g, nx, nnvs, e)
           }
       }
-
   val testgraph = makeWGraph(List((0, 1, 5.),(0,2,2.),(0,3,4.),(2,4,1.), (2,5,5.),(3,2,1.), (3,6,2.), (4,1,1.),(6,5,0)))
 
 
   private val augs : Vertex = -100
-  def augmentStart(g : WGraph, vs : Set[Vertex]) : WGraph =
-    g + ((augs, setToMap[Vertex, Double](v => 0.0, vs)))
+  private val auge : Vertex = -101
+  def augStart(s : Set[Vertex])(g : WGraph) : WGraph = {
+    val edges = s.toList.map(v => (augs,v,0.0))
+    g + makeWGraph(edges) 
+  }
+  def augEnd(s : Set[Vertex])(g : WGraph) : WGraph = {
+    val edges =s.toList.map(v => (v,auge,0.0))
+    val g2 : WGraph = makeWGraph(edges) 
+    g + g2 
+  }
 
-  def djsm(g : WGraph, vs : Set[Vertex]) : Map[Vertex, Double] = 
-    djs(augmentStart(g, vs), augs) - augs 
-
+  def djsm(g : WGraph, s : Set[Vertex], e : Vertex) : Option[Double] = 
+    djs(
+      augStart(s)(g),
+      augs, e)
   // task2.2
-  def djsmm(g : WGraph, vs : Set[Vertex], ve : Set[Vertex]) : Option[Double] = 
-    djsmm_(augmentStart(g, vs), Set(), insert(empty, (augs, 0)), ve)
+  def djsmm(g : WGraph, s : Set[Vertex], e : Set[Vertex]) : Option[Double] = 
+    djs(
+      (augStart(s) _ compose augEnd(e) _)(g),
+      augs, auge)
 
-  def djsmm_(g : WGraph, x : Set[Vertex], vs : PQueue, ve : Set[Vertex]) : Option[Double] = 
-      (deleteMin(vs)) match { 
-        case None => None 
-        case Some((nvs, (v, d))) => 
-          if (ve contains v)
-            Some(d)
-          else {
-            val nx = x + v
-            val nnvs = g(v).foldLeft(nvs)( { 
-              case (vs_ , (ngh, w)) => 
-                insert(vs_, (ngh, d + w))
-              })
-
-            djsmm_(g, nx, nnvs, ve)
-          }
-      }
-
-  /* task 2.3
+    /* task 2.3
   heuristic distance to target vertex 
+  Lemma : consistency
   h(w) = dist(w,T)
   let (a,b) be an edge
     dist(a, T) <= dist(a, b) + dist(b,T)
@@ -73,5 +66,49 @@ object djslib {
  */
 
  /* task 2.5
+ prove if consistency holds then A* works correctly
+
+  by induction on the size of (V-X) 
+    case |V - X| = 0 
+       
+
+  let (V, E, w) be a wgraph and h : V -> R_+ be a consistent heuristic
+  let s be the startin point 
+    let X subset V and s in X 
+    let s = argmin{ a in (V-X) } ( 
+      
 */
-}
+
+
+  def astar(g : WGraph, s : Vertex, e : Vertex, h : (Vertex => Double)) : Option[Double] =
+    astar_(g, Set(), insert(empty, (s,0.0)), e , h)
+
+  def astar_(g : WGraph, x : Set[Vertex], vs : PQueue, e : Vertex, h : (Vertex => Double)) : Option[Double]=
+      (deleteMin(vs)) match { 
+        case None => None 
+        case Some((nvs, (v, d))) => 
+          if (e == v)
+            Some(d)
+          else {
+            val nx = x + v
+            val nnvs = g(v).foldLeft(nvs)( { 
+              case (vs_ , (ngh, w)) => 
+                insert(vs_, (ngh, d + w + h(ngh)))
+              })
+
+            astar_(g, nx, nnvs, e, h)
+          }
+      }
+  def dist(l : Map[Vertex, (Double, Double)])(a : Vertex)(b : Vertex) : Double = {
+    val ((ax, ay), (bx, by)) = (l(a), l(b)) 
+    math.sqrt((ax- bx)^2 + (ay-by)^2)
+    }
+  val locs = Map(1 -> (1,3.5), 2 -> (3,6), 3 -> (5,5), 4 -> (1,2), 5 -> (3.5,3.5), 6 -> (5,1), 7 -> (3,2), 8 -> (4,4.5))
+  val edgs = List((1,2), (2,3), (1,4), (4,5), (2,5), (5,7), (5,6), (3,8), (3,6))
+  val ldist = dist(locs) _
+  val tgraph = makeWGraph(edgs.map({ case (a,b) => (a,b, ldist(a)(b))}))
+
+
+
+    
+   }
