@@ -1,5 +1,6 @@
 import PriorityQueueLibrary._
 import WGraphing._
+import scala.math._
 
 object djslib {
   implicit val tupOrder = Ordering.by[(Vertex,Double), Double](_._2) 
@@ -32,12 +33,12 @@ object djslib {
   private val auge : Vertex = -101
   def augStart(s : Set[Vertex])(g : WGraph) : WGraph = {
     val edges = s.toList.map(v => (augs,v,0.0))
-    g + makeWGraph(edges) 
+    g ++ makeWGraph(edges) 
   }
   def augEnd(s : Set[Vertex])(g : WGraph) : WGraph = {
     val edges =s.toList.map(v => (v,auge,0.0))
     val g2 : WGraph = makeWGraph(edges) 
-    g + g2 
+    g ++ g2 
   }
 
   def djsm(g : WGraph, s : Set[Vertex], e : Vertex) : Option[Double] = 
@@ -78,36 +79,41 @@ object djslib {
     let s = argmin{ a in (V-X) } ( 
       
 */
+  implicit val tupOrder2= Ordering.by[(Vertex,Double, Double), Double](_._3) 
+  val pqLib3 : PriorityQueueLib[(Vertex, Double, Double)] = new LeftHeapPQueueLib[(Vertex,Double,Double)]()
 
 
+  //task 2.6
   def astar(g : WGraph, s : Vertex, e : Vertex, h : (Vertex => Double)) : Option[Double] =
-    astar_(g, Set(), insert(empty, (s,0.0)), e , h)
+    astar_(g, Set(), pqLib3.insert(pqLib3.empty, (s,0.0,0.0)), e , h)
 
-  def astar_(g : WGraph, x : Set[Vertex], vs : PQueue, e : Vertex, h : (Vertex => Double)) : Option[Double]=
-      (deleteMin(vs)) match { 
+  def astar_(g : WGraph, x : Set[Vertex], vs : pqLib3.PQueue, e : Vertex, h : (Vertex => Double)) : Option[Double]=
+      (pqLib3.deleteMin(vs)) match { 
         case None => None 
-        case Some((nvs, (v, d))) => 
+        case Some((nvs, (v, d, hd))) => 
           if (e == v)
             Some(d)
           else {
             val nx = x + v
             val nnvs = g(v).foldLeft(nvs)( { 
               case (vs_ , (ngh, w)) => 
-                insert(vs_, (ngh, d + w + h(ngh)))
+                pqLib3.insert(vs_, (ngh, d + w, d + w + h(ngh)))
               })
+            println(pqLib3.queueString(vs))
 
             astar_(g, nx, nnvs, e, h)
           }
       }
   def dist(l : Map[Vertex, (Double, Double)])(a : Vertex)(b : Vertex) : Double = {
     val ((ax, ay), (bx, by)) = (l(a), l(b)) 
-    math.sqrt((ax- bx)^2 + (ay-by)^2)
+    math.sqrt(pow(ax- bx, 2) + pow(ay-by,2))
     }
-  val locs = Map(1 -> (1,3.5), 2 -> (3,6), 3 -> (5,5), 4 -> (1,2), 5 -> (3.5,3.5), 6 -> (5,1), 7 -> (3,2), 8 -> (4,4.5))
+  val locs = Map[Vertex, (Double, Double)](1 -> (1,3.5), 2 -> (3,6), 3 -> (5,5), 4 -> (1,2), 5 -> (3.5,3.5), 6 -> (5,1), 7 -> (3,2), 8 -> (4,4.5))
   val edgs = List((1,2), (2,3), (1,4), (4,5), (2,5), (5,7), (5,6), (3,8), (3,6))
   val ldist = dist(locs) _
   val tgraph = makeWGraph(edgs.map({ case (a,b) => (a,b, ldist(a)(b))}))
 
+  
 
 
     
