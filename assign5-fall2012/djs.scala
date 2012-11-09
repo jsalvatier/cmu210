@@ -113,6 +113,11 @@ object djslib {
   val ldist = dist(locs) _
   val tgraph = makeWGraph(edgs.map({ case (a,b) => (a,b, ldist(a)(b))}))
 
+
+  //task 2.7
+  //no you cannot. because there may be other paths that have more negatives. when you run out of paths to try. 
+  //
+
   
 
 
