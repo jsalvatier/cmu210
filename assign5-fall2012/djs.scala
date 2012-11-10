@@ -123,7 +123,37 @@ object djslib {
   //
 
 
-  
+  def findPath(h : Vertex => Double)(g : WGraph)(s : Set[Vertex])(e : Set[Vertex]) : (Option[(Vertex,Double)], Int) =
+    findPath_(h,g,s,e)
+
+  def findPath_(h : Vertex => Double,g : WGraph, x : Map[Vertex, Double], vs : pqLib3.PQueue, vc : Int, max : Int) :
+  (Map[Vertex,Double], Int) =
+      (pqLib3.deleteMin(vs)) match { 
+        case None => (x, vc)
+        case Some((nvs, (v, d, hd))) => 
+          if (vc >= max)
+              (None, vc)
+          else {
+            val nx = x + (v, d)
+            def add(q : pqLib3.PQueue, path : (Vertex, Double)) = { 
+              val (vi, w) = path
+              def ins() = {
+                val nd = d + w
+                pqLib3.insert(q, (vi, nd, nd + h(vi)))
+              }
+              (x get vi) match { 
+                case None => ins() 
+                case Some(cur_d) => 
+                  if (nd < cur_d)
+                    ins()
+                  else 
+                    q
+              }
+            }
+            val nnvs = g(v).foldLeft(nvs)(add)
+            findPath_(h, g, nx, nnvs, vc + 1)
+          }
+      }
 
 
     
