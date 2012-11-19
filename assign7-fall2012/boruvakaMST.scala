@@ -30,29 +30,33 @@ object boruvaka {
       val esl = MST_(  , nes,List(), 0)
       esl flatmap (l => l map ( es(_) )
     }
+
     type VVMap = Array[Vertex]
-    def MST_(vs : Array[Vertex], es : Seq[EdgeL], t : List[List[Int]], i : Int) : List[List[Int]] =  
+    def MST_(n : Int, vs : Seq[Vertex], es : Seq[EdgeL], t : List[List[Int]], i : Int) : List[List[Int]] =  
       if (e.size == 0) 
         t
       else { 
-        val (c, p) = minStarContract(vs, es, i)
+        val (c, p) = minStarContract(n, vs, es, i)
         val remapped = map {case (u, v,w,l) => (p(u), p(v), w, l)} 
+        val nvs = nvs filter (v => p(v) == v) 
         val nne = remapped filter {case (u, v,w, l) => u != v} 
-        MST_(n, nne, c ::t , i + 1)
+        MST_(n, nvs, nne, c ::t , i + 1)
       }
 
-    def minStartContract( vs : Array[Vertex], es : Seq[EdgeL], i : Int)  : (Seq[EdgeL], VVMap)= {
+    def minStartContract(n : Int, vs : Seq[Vertex], es : Seq[EdgeL], i : Int)  : (Seq[EdgeL], VVMap)= {
       val heads = Vector.tabulate(vs.size)( n => i * 71 % 2 == 0) 
       
-      val mins = minEdges(vs, es)
+      val mins = minEdges(n, vs, es)
       val contract = mins filter {case (u, v, w, l) => !heads(u) && heads(v)}
 
       val rm = Array.tabulate(vs.size)
       val remap = rm update (contract map {case (u, v, w, l) => u -> v})
       (contract, remap) 
     }
-    def minEdges(vs : Array[Vertex], es : Seq[EdgeL]) : Seq[EdgeL] = {
-
+    def minEdges(n : Int, vs : Seq[Vertex], es : Seq[EdgeL]) : Seq[EdgeL] = {
+      val nes = es map { case e => (e._1, e)}
+      val edgs = inject(nes)(Seq.repeat((0,0,0.0,0), n))
+      vs map (v => edgs(v))
     }
   }
   object MST_Map extends MST_Solver {
