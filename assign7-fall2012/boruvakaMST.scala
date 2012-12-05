@@ -1,5 +1,5 @@
-
-
+import scala.math._
+import scala.util._
 
 object boruvaka {
 
@@ -8,7 +8,7 @@ object boruvaka {
   type Edge = (Vertex, Vertex, Weight)
 
   trait MST_Solver { 
-    def MST(es : Seq[Edge], n : Int) : Seq[Edge];
+    def MST(t : (Seq[Edge], Int) ) : Seq[Edge];
   }
 
   object MST_Seq extends MST_Solver {
@@ -23,83 +23,104 @@ object boruvaka {
     thus we assume that it's going to be the same cost bounds EXCEPT for the initial sort 
      */
     type EdgeL = (Vertex, Vertex, Weight, Int)
-    def MST(es : Seq[Edge], n : Int) : Seq[Edge] = { 
-      val ses = es.sorted( by[Edge, Weight](_.3))
-      val nes = es map {case (u, v, w) => (u, v, w, i)}
+    def MST(t : (Seq[Edge], Int)) : Seq[Edge] = { 
+      val r = new Random(1)
+      val (es, n) = t
+      val ses = es.sorted( Ordering.by[Edge, Weight]( (_._3)  ))
+      val nes = (es.zipWithIndex) map {case ((u, v, w), i) => (u, v, w, i)}
 
-      val esl = MST_(  , nes,List(), 0)
-      esl flatmap (l => l map ( es(_) )
+      val esl = MST_(n, Vector.tabulate(n)(i => i) , nes,List(), 0, r)
+      esl flatMap (l => l map ( (e : EdgeL) => es(e._4) ))
+    }
+   
+    def MST_(n : Int, vs : Seq[Vertex], es : Seq[EdgeL], t : List[Seq[EdgeL]], i : Int, r : Random) : List[Seq[EdgeL]] = {  
+      if (es.size == 0) { 
+        t
+      }
+      else { 
+        val (c, p) = minStarContract(n, vs, es, i, r)
+        val remapped = es map {case (u, v,w,l) => (p(u), p(v), w, l)} 
+        val nvs = vs filter (v => p(v) == v) 
+        val nne = remapped filter {case (u, v,w, l) => u != v} 
+        MST_(n, nvs, nne, c ::t , i + 1, r)
+      }
     }
 
-    type VVMap = Array[Vertex]
-    def MST_(n : Int, vs : Seq[Vertex], es : Seq[EdgeL], t : List[List[Int]], i : Int) : List[List[Int]] =  
-      if (e.size == 0) 
-        t
-      else { 
-        val (c, p) = minStarContract(n, vs, es, i)
-        val remapped = map {case (u, v,w,l) => (p(u), p(v), w, l)} 
-        val nvs = nvs filter (v => p(v) == v) 
-        val nne = remapped filter {case (u, v,w, l) => u != v} 
-        MST_(n, nvs, nne, c ::t , i + 1)
-      }
-
-    def minStartContract(n : Int, vs : Seq[Vertex], es : Seq[EdgeL], i : Int)  : (Seq[EdgeL], VVMap)= {
-      val heads = Vector.tabulate(vs.size)( n => i * 71 % 2 == 0) 
+    def minStarContract(n : Int, vs : Seq[Vertex], es : Seq[EdgeL], i : Int, r : Random)  : (Seq[EdgeL], Seq[Vertex])= {
+      val heads = Vector.tabulate(n)( a => r.nextBoolean) 
       
       val mins = minEdges(n, vs, es)
       val contract = mins filter {case (u, v, w, l) => !heads(u) && heads(v)}
 
-      val rm = Array.tabulate(vs.size)
-      val remap = rm update (contract map {case (u, v, w, l) => u -> v})
+      val rm = Array.tabulate(n)(i => i)
+      val remap = inject(contract map {case (u, v, w, l) => u -> v}, rm)
       (contract, remap) 
     }
     def minEdges(n : Int, vs : Seq[Vertex], es : Seq[EdgeL]) : Seq[EdgeL] = {
       val nes = es map { case e => (e._1, e)}
-      val edgs = inject(nes)(Seq.repeat((0,0,0.0,0), n))
+      val default = Vector.fill(n)((0,0,0.0,0))
+      val edgs = inject(nes, default)
       vs map (v => edgs(v))
     }
-  }
-  object MST_Map extends MST_Solver {
-    type Graph = Seq[Seq[Vertex]] 
 
-    def makeGraph[L]( es :  Seq[Edge] ) : Graph[L] = 
-      (es map single) reduce merge
-
-    def MST(es : Seq[Edg], n : Int) : Seq[Edg] = {
-      val r = new Random(1)
-      val labeled = es map {case Edg(a,b,w,_) => Edge[Edg](a,b,w, Edg(a,b,w,Unit)) }
-      MST_(makeUGraph(labled), r)
-    }
-
-    def MST_(g : G, r : Random) : G = { 
-      if (g.size == 0) 
-        g
-      else {
-        val min_ed = minEdge(g) 
-        val (ng, edges) = starContract(g, min_ed, r)
-        val original_edges = edges map (_.2)
-        MST_(ng,r ) ++ makeGraph(original_edges)
+    /* 
+    assume this has work (|a| + |b|) and span (1)
+    */
+    def inject[A]( a : Seq[(Int, A)], b : Seq[A]) : Seq[A] = {
+      var r = b.toBuffer
+      for ( t <- a) { 
+        val (i, v) = t
+        r(i) = v
       }
-
+      r
     }
-    def starContract(g : Graph[L], es : Set[Edge[L]], r : Random) : (Graph[L], Set[Edge[L]]) = { 
-      val heads = Vector.tabulate(g.size)(r.nextBoolean) // assume O(n) work  O(log n) span
-      val ces = es.filter {case ((a,b, w), _) => !heads(a) && heads(b)}
-      val v = Map(ces map {case ((a,b,w), _) => a -> b})
-      (merge(g)(v), ces)
-    }
-
-    def merge(g : G, mergeto : Map[Vertex, Vertex]) : G = {
-      val ngraph = mergeto map { case (v, nv) => nv -> getNeighbors(g)(v)}  
-      merge((g - mergeto.domain), ngraph)(mergeset)
-    }
-
-
-    def minEdge(g : G) = g.map( (k,v) => v.reduce(smallest) )
-    def min(a :E, b : E) : E = 
-      if (a.w < b.w) 
-        a
-      else 
-        b
   }
+  
+  /* task 3.1
+  let G be a weighted graph and  |G.E| > 2. with distinct weights 
+    prove that the second smallest edge in G.E is in MST(G)
+
+    let (a,b) in E be the smallest edge weight and 
+        (c,d) in E be the second smallest edge weight 
+        (a,b) != (c,d) since otherwise they would be the same edge
+        thus either c not in {a,b} or d not in {a,b}
+
+          case c not in {a,b}
+            thus (a,b) is not an edge of c, so since (c,d) is the second minimum, 
+            (c,d) is the minimum edge of c and thus in MST(G)
+          case d not in {a,b} 
+            similar reasoning applies 
+
+          (c,d) in MST(G)
+          QED
+
+  task 3.2
+
+    let V be a ring with +1 and -1 defined
+    let
+    r_v ~ U(0,1) iid 
+    A_v = if (r_v > r_{v-1} and r_v > r_{v+1} then 1 else 0 
+    f = sum_{v in V}( A_v)
+      
+      calculate E(f)
+
+      E(f) = E(sum_{v in V}( A_v))
+           = sum_{v in V} E(A_v)
+      
+      assume r_v fixed
+        E(A_v) = P(r_v > r_{v-1} and r_v > r_{v+1})
+             = P(r_v > r_{v-1}) * P(r_v > r_{v+1})
+
+             = r_v * r_v
+             = r_v**2
+      E(A_v) = integral_[0,1](r_v**2 d{r_v}) 
+             = r_v**3/3 eval[0,1] 
+             = 1/3
+
+      E(f) = sum_{v in V} E(A_v)
+           = sum_{v in V} 1/3
+           = n/3
+
+  task 3.3
+      
 }
